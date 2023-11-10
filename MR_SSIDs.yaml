@@ -1,0 +1,43 @@
+---
+- hosts: meraki_servers
+  vars:
+    network_id: "XXXXXXXXXXXXXXXXXX" # Put your Network ID here
+  gather_facts: false
+ 
+  tasks:
+    - name: Create Corp SSID
+      cisco.meraki.networks_wireless_ssids:
+        state: present
+        enabled: true
+        name: "Corporate WiFi"
+        networkId: "{{network_id}}"
+        number: 1
+        ipAssignmentMode: Bridge mode
+        defaultVlanId: 100
+        useVlanTagging: true
+        authMode: "8021x-radius"
+        radiusServers: 
+          - one:
+            host: "1.2.3.4"
+            port: 1812
+            secret: Super$ecret
+
+    - name: Create Guest SSID
+      cisco.meraki.networks_wireless_ssids:
+        state: present
+        enabled: true
+        name: "Guest WiFi"
+        networkId: "{{network_id}}"
+        number: 2
+        ipAssignmentMode: Bridge mode
+        defaultVlanId: 200
+        useVlanTagging: true
+        authMode: "open"
+        splashPage: Click-through splash page
+
+    - name: Allow Internet access only for Guests
+      cisco.meraki.networks_wireless_ssids_firewall_l3_firewall_rules:
+        state: present
+        networkId: "{{network_id}}"
+        number: "2" # "2" is the SSID number. Remeber that SSID numbering starts from 0 in dashboard
+        allowLanAccess: false

@@ -1,0 +1,35 @@
+---
+- hosts: meraki_servers
+  vars:
+    network_id: "XXXXXXXXXXXXXXXXXX" # Put your Network ID here
+  gather_facts: false
+ 
+  tasks:
+    - name: Create 802.1x Access Policy
+      cisco.meraki.networks_switch_access_policies:
+        state: present
+        networkId: "{{network_id}}"
+        accessPolicyType: Hybrid authentication
+        dot1x:
+          controlDirection: inbound
+        guestPortBouncing: false
+        guestVlanId: 200
+        hostMode: Single-Host
+        increaseAccessSpeed: false
+        name: 'MyAccessPolicy'
+        radius:
+          criticalAuth:
+            dataVlanId: 100
+            suspendPortBounce: true
+          failedAuthVlanId: 200
+          reAuthenticationInterval: 120
+        radiusAccountingEnabled: false
+        radiusCoaSupportEnabled: false
+        radiusServers:
+          - host: 1.2.3.4
+            port: 1812
+            secret: Super$secret
+        radiusTestingEnabled: false
+        urlRedirectWalledGardenEnabled: true
+        urlRedirectWalledGardenRanges:
+        - 192.168.128.0/24

@@ -1,0 +1,142 @@
+---
+- hosts: meraki_servers
+  vars:
+    network_id: "XXXXXXXXXXXXXXXX" # Put your Network ID here
+  gather_facts: false
+  tasks:
+
+  # MX configuration
+
+    - name: Enable Vlans on the MX
+      cisco.meraki.networks_appliance_vlans_settings:
+        state: present
+        networkId: "{{network_id}}"
+        vlansEnabled: true
+        
+    - name: Update appliance traffic shaping
+      cisco.meraki.networks_appliance_traffic_shaping:
+        state: present
+        globalBandwidthLimits:
+          limitDown: 5120
+          limitUp: 2048
+        networkId: "{{network_id}}"
+
+    - name: Create FW outbound L3 rules
+      cisco.meraki.networks_appliance_firewall_l3_firewall_rules:
+        networkId: "{{network_id}}"
+        state: present
+        rules:
+          - comment: Block malicious site
+            destCidr: internetbadguys.com
+            destPort: any
+            policy: deny
+            protocol: any
+            srcCidr: any
+            syslogEnabled: false
+    
+    - name: Create Corp VLAN
+      cisco.meraki.networks_appliance_vlans:
+        state: present
+        applianceIp: "192.168.100.1"
+        vlanId: "100"
+        id: "100"
+        ipv6:
+          enabled: false
+        name: "Corporate VLAN"
+        networkId: "{{network_id}}"
+        subnet: "192.168.100.0/24"
+      
+    - name: Create Guest VLANs
+      cisco.meraki.networks_appliance_vlans:
+        state: present
+        applianceIp: "192.168.200.1"
+        vlanId: "200"
+        id: "200"
+        ipv6:
+          enabled: false
+        name: "Guest VLAN"
+        networkId: "{{network_id}}"
+        subnet: "192.168.200.0/24"
+ 
+    - name: Activate Anti-Malware
+      cisco.meraki.networks_appliance_security_malware:
+        state: present
+        networkId: "{{network_id}}"
+        mode: "enabled"
+
+    - name: Activate IPS
+      cisco.meraki.networks_appliance_security_intrusion:
+        state: present
+        idsRulesets: "balanced"
+        mode: "prevention"
+        networkId: "{{network_id}}"
+       
+    # MR configuration
+
+    - name: Create Corp SSID
+      cisco.meraki.networks_wireless_ssids:
+        state: present
+        enabled: true
+        name: "Corporate WiFi"
+        networkId: "{{network_id}}"
+        number: 1
+        ipAssignmentMode: Bridge mode
+        defaultVlanId: 100
+        useVlanTagging: true
+        authMode: "8021x-radius"
+        radiusServers: 
+          - one:
+            host: "1.2.3.4"
+            port: 1812
+            secret: Super$ecret
+
+    - name: Create Guest SSID
+      cisco.meraki.networks_wireless_ssids:
+        state: present
+        enabled: true
+        name: "Guest WiFi"
+        networkId: "{{network_id}}"
+        number: 2
+        ipAssignmentMode: Bridge mode
+        defaultVlanId: 200
+        useVlanTagging: true
+        authMode: "open"
+        splashPage: Click-through splash page
+
+    - name: Allow Internet access only for Guests
+      cisco.meraki.networks_wireless_ssids_firewall_l3_firewall_rules:
+        state: present
+        networkId: "{{network_id}}"
+        number: "2" # "2" is the SSID number. Remeber that SSID numbering starts from 0 in dashboard
+        allowLanAccess: false
+      
+     # MS configuration
+
+    - name: Create 802.1x Access Policy
+      cisco.meraki.networks_switch_access_policies:
+        state: present
+        networkId: "{{network_id}}"
+        accessPolicyType: Hybrid authentication
+        dot1x:
+          controlDirection: inbound
+        guestPortBouncing: false
+        guestVlanId: 200
+        hostMode: Single-Host
+        increaseAccessSpeed: false
+        name: 'MyAccessPolicy'
+        radius:
+          criticalAuth:
+            dataVlanId: 100
+            suspendPortBounce: true
+          failedAuthVlanId: 200
+          reAuthenticationInterval: 120
+        radiusAccountingEnabled: false
+        radiusCoaSupportEnabled: false
+        radiusServers:
+          - host: 1.2.3.4
+            port: 1812
+            secret: Super$secret
+        radiusTestingEnabled: false
+        urlRedirectWalledGardenEnabled: true
+        urlRedirectWalledGardenRanges:
+        - 192.168.128.0/24
