@@ -2,7 +2,7 @@
 - hosts: meraki_servers
   vars:
     network_id: "XXXXXXXXXXXXXXXX" # Put your Network ID here
-  gather_facts: false
+  gather_facts: true
   tasks:
 
   # MX configuration
